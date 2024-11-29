@@ -8,13 +8,17 @@
         <h1>YOLO Real-Time Object Detection</h1>
         <div class="video-container">
             <div class="video-wrapper">
-                <label for="video">Original Webcam Feed</label><br>
-                <video id="video" autoplay muted playsinline style="width: 640px; height: 480px;"></video>
-                <div id="fps-counter" class="fps-counter">FPS: --</div>
-            </div>
-            <div class="video-wrapper">
-                <label for="canvas">Processed Detection Feed</label><br>
+                <label for="canvas">Real-Time Detection Feed</label><br>
+                <video id="video" style="display: none;"></video>
                 <canvas id="canvas" style="width: 640px; height: 480px;"></canvas>
+                <div id="fps-counter" class="fps-counter">FPS: --</div>
+                <div class="toggle-switch">
+                    <label class="switch">
+                        <input type="checkbox" id="detection-toggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="toggle-label">YOLO Detection</span>
+                </div>
             </div>
         </div>
         <script>
@@ -23,6 +27,12 @@
             const context = canvas.getContext('2d');
             const fpsCounter = document.getElementById('fps-counter');
             let websocket;
+            let detectionEnabled = true;
+            const detectionToggle = document.getElementById('detection-toggle');
+
+            detectionToggle.addEventListener('change', (e) => {
+                detectionEnabled = e.target.checked;
+            });
 
             async function startVideo() {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -49,9 +59,14 @@
                     canvas.height = canvasBlob.height;
                     context.drawImage(canvasBlob, 0, 0);
 
-                    canvas.toBlob((blob) => {
+                    canvas.toBlob(async (blob) => {
                         if (websocket && websocket.readyState === WebSocket.OPEN) {
-                            websocket.send(blob);
+                            const arrayBuffer = await blob.arrayBuffer();
+                            const message = {
+                                frame: Array.from(new Uint8Array(arrayBuffer)),
+                                detection: detectionEnabled
+                            };
+                            websocket.send(JSON.stringify(message));
                         }
                     }, "image/jpeg");
                 }, 100);
@@ -64,10 +79,10 @@
 
                 websocket.onmessage = (event) => {
                     const img = new Image();
-                    img.src = URL.createObjectURL(event.data);
+                    img.src = URL.createObjectURL(new Blob([event.data]));
                     img.onload = () => {
                         context.drawImage(img, 0, 0);
-                        URL.revokeObjectURL(img.src); // Clean up memory
+                        URL.revokeObjectURL(img.src);
                     };
                 };
 

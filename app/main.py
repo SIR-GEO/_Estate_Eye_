@@ -37,34 +37,34 @@ async def websocket_endpoint(websocket: WebSocket):
         while connection_active:
             try:
                 # Receive and decode frame
-                frame = await websocket.receive_bytes()
-                if not frame:  # Check if frame is empty
-                    connection_active = False
-                    continue
+                data = await websocket.receive_json()
+                frame_data = bytes(data['frame'])
+                detection_enabled = data['detection']
 
-                nparr = np.frombuffer(frame, np.uint8)
+                nparr = np.frombuffer(frame_data, np.uint8)
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-                # Perform object detection
-                results = model.predict(img, conf=0.5, device=device, stream=True)
+                if detection_enabled:
+                    # Perform object detection
+                    results = model.predict(img, conf=0.5, device=device, stream=True)
 
-                # Draw bounding boxes
-                for result in results:
-                    for box in result.boxes:
-                        x1, y1, x2, y2 = map(int, box.xyxy[0])
-                        label = model.names[int(box.cls[0])]
-                        score = box.conf[0]
+                    # Draw bounding boxes
+                    for result in results:
+                        for box in result.boxes:
+                            x1, y1, x2, y2 = map(int, box.xyxy[0])
+                            label = model.names[int(box.cls[0])]
+                            score = box.conf[0]
 
-                        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                        cv2.putText(
-                            img,
-                            f"{label} ({score:.2f})",
-                            (x1, max(y1 - 10, 0)),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5,
-                            (0, 255, 0),
-                            2,
-                        )
+                            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                            cv2.putText(
+                                img,
+                                f"{label} ({score:.2f})",
+                                (x1, max(y1 - 10, 0)),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5,
+                                (0, 255, 0),
+                                2,
+                            )
 
                 # Send processed frame
                 _, buffer = cv2.imencode(".jpg", img)
