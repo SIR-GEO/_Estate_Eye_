@@ -137,6 +137,7 @@ cython_debug/
 
 # VS Code
 .vscode/
+test.py
 
 # Local virtual environments
 local_env/
