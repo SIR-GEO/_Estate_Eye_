@@ -12,9 +12,8 @@ body {
 .video-container {
     display: flex;
     flex-direction: row;
-    justify-content: center;
-    align-items: center;
     gap: 20px;
+    align-items: flex-start;
 }
 .video-wrapper {
     text-align: center;
@@ -39,9 +38,6 @@ h1 {
     margin-bottom: 20px;
 }
 .toggle-switch {
-    position: absolute;
-    top: 10px;
-    right: 10px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -101,4 +97,55 @@ input:checked + .slider:before {
 .toggle-label {
     color: white;
     font-size: 14px;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+.toggle-switch input:disabled ~ .toggle-label {
+    opacity: 0.5;
+}
+
+.button-group {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 30px;
+    padding: 10px 0;
+    width: 100%;
+}
+
+.switch input:disabled + .slider {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.switch input:disabled + .slider:before {
+    background-color: #999;
+}
+
+.toggle-label {
+    color: white;
+    font-size: 14px;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+.toggle-switch input:disabled ~ .toggle-label {
+    opacity: 0.5;
+}
+
+.text-output {
+    width: 400px;
+    height: 480px;
+    border: 2px solid #ffffff;
+    border-radius: 8px;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.text-content {
+    height: calc(100% - 30px);
+    overflow-y: auto;
+    color: #ffffff;
+    margin-top: 10px;
 }
