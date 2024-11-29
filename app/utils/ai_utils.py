@@ -1,6 +1,7 @@
 import base64
 import cv2
 from anthropic import Anthropic
+from tavily import TavilyClient
 import os
 from dotenv import load_dotenv
 
@@ -9,6 +10,7 @@ load_dotenv()
 class AIAnalyzer:
     def __init__(self):
         self.anthropic = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+        self.tavily_client = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
         
     def get_image_base64(self, image):
         _, buffer = cv2.imencode('.jpg', image)
@@ -39,6 +41,7 @@ Analysis:
 Search Terms:
 [List 2-3 specific search terms, separated by commas]"""
 
+            # Get Claude analysis
             response = self.anthropic.messages.create(
                 model="claude-3-haiku-20240307",
                 max_tokens=1024,
@@ -62,7 +65,44 @@ Search Terms:
                 }]
             )
 
-            return response.content[0].text if response and response.content else "Error: No response from Claude"
+            if not response or not response.content:
+                return {"claude": "Error: No response from Claude", "tavily": []}
+
+            claude_analysis = response.content[0].text.strip()
+
+            # Extract search terms
+            search_terms = []
+            if "Search Terms:" in claude_analysis:
+                terms_section = claude_analysis.split("Search Terms:")[-1].strip()
+                if terms_section.lower() != "none":
+                    search_terms = [term.strip() for term in terms_section.split(",") if term.strip()][:3]
+
+            # Perform Tavily searches
+            tavily_results = []
+            if search_terms:
+                for term in search_terms:
+                    try:
+                        search_result = self.tavily_client.search(
+                            query=term,
+                            include_answer=True,
+                            search_depth="advanced",
+                            max_results=1
+                        )
+                        if search_result and search_result.get('results'):
+                            result_entry = {
+                                'term': term,
+                                'title': search_result['results'][0].get('title', ''),
+                                'content': search_result['results'][0].get('content', '')[:200] + '...',
+                                'url': search_result['results'][0].get('url', '')
+                            }
+                            tavily_results.append(result_entry)
+                    except Exception as search_error:
+                        print(f"Tavily search error for term '{term}': {search_error}")
+
+            return {
+                "claude": claude_analysis,
+                "tavily": tavily_results
+            }
             
         except Exception as e:
-            return f"Error during analysis: {str(e)}"
+            return {"claude": f"Error during analysis: {str(e)}", "tavily": []}

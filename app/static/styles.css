@@ -137,10 +137,13 @@ input:checked + .slider:before {
 .text-output {
     width: 400px;
     height: 480px;
-    border: 2px solid #ffffff;
     border-radius: 8px;
     padding: 15px;
     background-color: rgba(255, 255, 255, 0.1);
+}
+
+.text-output:not(.ai-search) {
+    border: 2px solid #ffffff;
 }
 
 .text-sections {
@@ -165,6 +168,9 @@ input:checked + .slider:before {
     height: calc(100% - 30px);
     overflow-y: auto;
     margin-top: 10px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
 }
 
 .ai-search {
@@ -195,4 +201,36 @@ input:checked + .slider:before {
 
 .ai-search-btn:active {
     background-color: #1565C0;
+}
+
+.search-result {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    word-wrap: break-word;
+}
+
+.search-result h4 {
+    margin: 0 0 10px 0;
+    color: #2196F3;
+}
+
+.search-result p {
+    margin: 5px 0;
+}
+
+.search-result a {
+    color: #64B5F6;
+    text-decoration: none;
+}
+
+.search-result a:hover {
+    text-decoration: underline;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 15px 0;
 }
