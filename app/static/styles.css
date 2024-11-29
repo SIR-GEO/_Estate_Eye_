@@ -166,3 +166,33 @@ input:checked + .slider:before {
     overflow-y: auto;
     margin-top: 10px;
 }
+
+.ai-search {
+    margin-left: 20px;
+}
+
+.search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ai-search-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.ai-search-btn:hover {
+    background-color: #1976D2;
+}
+
+.ai-search-btn:active {
+    background-color: #1565C0;
+}

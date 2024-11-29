@@ -12,6 +12,7 @@ from .utils.model import initialize_model
 import time
 import torch
 from pyzbar.pyzbar import decode
+from .utils.ai_utils import AIAnalyzer
 
 # Get the absolute path to the static and templates directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +33,9 @@ print(f"Current CUDA Device: {torch.cuda.current_device() if torch.cuda.is_avail
 print(f"GPU Device Name: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}")
 print(f"YOLO Device: {next(model.parameters()).device}")
 print(f"PaddleOCR GPU Enabled: {cuda_available}")
+
+# Add after other initializations
+ai_analyzer = AIAnalyzer()
 
 @app.get("/")
 async def get(request: Request):
@@ -173,3 +177,18 @@ async def websocket_endpoint(websocket: WebSocket):
         print("WebSocket disconnected")
     finally:
         print("WebSocket connection closed")
+
+@app.post("/analyze_snapshot")
+async def analyze_snapshot(request: Request):
+    try:
+        data = await request.json()
+        image_data = np.frombuffer(bytes(data['frame']), np.uint8)
+        img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
+        
+        ocr_texts = data.get('ocr_texts', [])
+        barcode_texts = data.get('barcode_texts', [])
+        
+        analysis = await ai_analyzer.analyze_snapshot(img, ocr_texts, barcode_texts)
+        return {"analysis": analysis}
+    except Exception as e:
+        return {"error": str(e)}
