@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>YOLO Real-Time Detection</title>
+        <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+    </head>
+    <body>
+        <h1>YOLO Real-Time Object Detection</h1>
+        <div class="video-container">
+            <div class="video-wrapper">
+                <label for="video">Original Webcam Feed</label><br>
+                <video id="video" autoplay muted playsinline style="width: 640px; height: 480px;"></video>
+                <div id="fps-counter" class="fps-counter">FPS: --</div>
+            </div>
+            <div class="video-wrapper">
+                <label for="canvas">Processed Detection Feed</label><br>
+                <canvas id="canvas" style="width: 640px; height: 480px;"></canvas>
+            </div>
+        </div>
+        <script>
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            const fpsCounter = document.getElementById('fps-counter');
+            let websocket;
+
+            async function startVideo() {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.play();
+
+                const track = stream.getVideoTracks()[0];
+                const imageCapture = new ImageCapture(track);
+
+                // Establish WebSocket connection
+                connectWebSocket();
+
+                // Continuously send frames to the server
+                let lastFrameTime = performance.now();
+                setInterval(async () => {
+                    const now = performance.now();
+                    const fps = (1000 / (now - lastFrameTime)).toFixed(1);
+                    lastFrameTime = now;
+                    fpsCounter.textContent = `FPS: ${fps}`;
+
+                    const blob = await imageCapture.grabFrame();
+                    const canvasBlob = await createImageBitmap(blob);
+                    canvas.width = canvasBlob.width;
+                    canvas.height = canvasBlob.height;
+                    context.drawImage(canvasBlob, 0, 0);
+
+                    canvas.toBlob((blob) => {
+                        if (websocket && websocket.readyState === WebSocket.OPEN) {
+                            websocket.send(blob);
+                        }
+                    }, "image/jpeg");
+                }, 100);
+            }
+
+            startVideo();
+
+            function connectWebSocket() {
+                websocket = new WebSocket("ws://localhost:8000/ws");
+
+                websocket.onmessage = (event) => {
+                    const img = new Image();
+                    img.src = URL.createObjectURL(event.data);
+                    img.onload = () => {
+                        context.drawImage(img, 0, 0);
+                        URL.revokeObjectURL(img.src); // Clean up memory
+                    };
+                };
+
+                websocket.onclose = (event) => {
+                    console.warn("WebSocket closed. Attempting to reconnect...");
+                    setTimeout(() => {
+                        if (websocket.readyState === WebSocket.CLOSED) {
+                            connectWebSocket();
+                        }
+                    }, 1000);
+                };
+
+                websocket.onerror = (error) => {
+                    console.error("WebSocket error:", error);
+                    websocket.close();
+                };
+            }
+        </script>
+    </body>
+</html>
