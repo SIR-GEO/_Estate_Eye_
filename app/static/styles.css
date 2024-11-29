@@ -143,9 +143,26 @@ input:checked + .slider:before {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
+.text-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: calc(100% - 30px);
+}
+
+.section {
+    flex: 1;
+}
+
+.section h3 {
+    margin: 0;
+    padding: 5px 0;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .text-content {
     height: calc(100% - 30px);
     overflow-y: auto;
-    color: #ffffff;
     margin-top: 10px;
 }

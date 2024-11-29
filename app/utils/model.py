@@ -3,6 +3,8 @@ import torch
 from paddleocr import PaddleOCR
 import paddle
 import importlib
+from pyzbar.pyzbar import decode
+import cv2
 
 def initialize_model():
     # Check CUDA availability
@@ -37,4 +39,4 @@ def initialize_model():
         gpu_mem=4000
     )
 
-    return model, device, ocr, cuda_available
+    return model, device, ocr, cuda_available, decode

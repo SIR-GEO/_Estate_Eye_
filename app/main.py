@@ -11,6 +11,7 @@ import numpy as np
 from .utils.model import initialize_model
 import time
 import torch
+from pyzbar.pyzbar import decode
 
 # Get the absolute path to the static and templates directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +25,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 templates = Jinja2Templates(directory=templates_dir)
 
 # Initialize model
-model, device, ocr, cuda_available = initialize_model()
+model, device, ocr, cuda_available, barcode_decoder = initialize_model()
 
 print(f"CUDA Available: {torch.cuda.is_available()}")
 print(f"Current CUDA Device: {torch.cuda.current_device() if torch.cuda.is_available() else 'CPU'}")
@@ -42,7 +43,9 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.accept()
         connection_active = True
         last_ocr_time = 0
-        OCR_INTERVAL = 1  # Reduced from 2 seconds to 0.5 seconds
+        last_barcode_time = 0
+        OCR_INTERVAL = 1
+        BARCODE_INTERVAL = 1
 
         while connection_active:
             try:
@@ -50,6 +53,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 frame_data = bytes(data['frame'])
                 detection_enabled = data.get('detection', False)
                 ocr_enabled = data.get('ocr', False)
+                barcode_enabled = data.get('barcode', False)
 
                 if not frame_data:
                     continue
@@ -60,6 +64,44 @@ async def websocket_endpoint(websocket: WebSocket):
                     continue
                     
                 processed_img = img.copy()
+
+                # Barcode/QR Detection
+                if barcode_enabled and (time.time() - last_barcode_time) >= BARCODE_INTERVAL:
+                    barcodes = barcode_decoder(img)
+                    last_barcode_time = time.time()
+                    
+                    if barcodes:
+                        barcode_texts = []
+                        for barcode in barcodes:
+                            # Get the barcode polygon
+                            points = barcode.polygon
+                            if points is not None and len(points) > 0:
+                                # Convert points to numpy array
+                                pts = np.array(points, np.int32)
+                                pts = pts.reshape((-1, 1, 2))
+                                
+                                # Draw the polygon
+                                cv2.polylines(processed_img, [pts], True, (255, 0, 0), 2)
+                                
+                                # Add text above the barcode
+                                text = f"{barcode.type}: {barcode.data.decode()}"
+                                text_position = (points[0].x, points[0].y - 10)
+                                cv2.putText(
+                                    processed_img,
+                                    text,
+                                    text_position,
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.5,
+                                    (255, 0, 0),
+                                    2
+                                )
+                                barcode_texts.append(text)
+                        
+                        if barcode_texts:
+                            await websocket.send_json({
+                                "type": "barcode",
+                                "texts": barcode_texts
+                            })
 
                 if ocr_enabled and (time.time() - last_ocr_time) >= OCR_INTERVAL:
                     ocr_results = ocr.ocr(img)

@@ -39,9 +39,20 @@
                 <div id="fps-counter" class="fps-counter">FPS: --</div>
             </div>
             <div class="text-output">
-                <label>OCR Detected Text</label>
-                <div class="text-content">
-                    <p>No text detected yet...</p>
+                <label>Detected Text</label>
+                <div class="text-sections">
+                    <div class="section">
+                        <h3>OCR Results</h3>
+                        <div class="text-content ocr-content">
+                            <p>No text detected yet...</p>
+                        </div>
+                    </div>
+                    <div class="section">
+                        <h3>Barcode/QR Results</h3>
+                        <div class="text-content barcode-content">
+                            <p>No codes detected yet...</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -50,12 +61,15 @@
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
             const fpsCounter = document.getElementById('fps-counter');
-            const textContent = document.querySelector('.text-content');
+            const ocrContent = document.querySelector('.ocr-content');
+            const barcodeContent = document.querySelector('.barcode-content');
             let websocket;
             let detectionEnabled = true;
             let ocrEnabled = false;
+            let barcodeEnabled = false;
             const detectionToggle = document.getElementById('detection-toggle');
             const ocrToggle = document.getElementById('ocr-toggle');
+            const barcodeToggle = document.getElementById('barcode-toggle');
 
             detectionToggle.addEventListener('change', (e) => {
                 detectionEnabled = e.target.checked;
@@ -65,8 +79,13 @@
                 ocrEnabled = e.target.checked;
             });
 
-            // Enable OCR toggle
+            barcodeToggle.addEventListener('change', (e) => {
+                barcodeEnabled = e.target.checked;
+            });
+
+            // Enable toggles
             document.getElementById('ocr-toggle').disabled = false;
+            document.getElementById('barcode-toggle').disabled = false;
 
             function connectWebSocket() {
                 websocket = new WebSocket("ws://localhost:8000/ws");
@@ -83,7 +102,9 @@
                         try {
                             const data = JSON.parse(event.data);
                             if (data.type === 'ocr') {
-                                textContent.innerHTML = data.texts.map(text => `<p>${text}</p>`).join('');
+                                ocrContent.innerHTML = data.texts.map(text => `<p>${text}</p>`).join('');
+                            } else if (data.type === 'barcode') {
+                                barcodeContent.innerHTML = data.texts.map(text => `<p>${text}</p>`).join('');
                             }
                         } catch (e) {
                             console.error('Error parsing message:', e);
@@ -144,7 +165,8 @@
                             const message = {
                                 frame: Array.from(new Uint8Array(arrayBuffer)),
                                 detection: detectionEnabled,
-                                ocr: ocrEnabled
+                                ocr: ocrEnabled,
+                                barcode: barcodeEnabled
                             };
                             websocket.send(JSON.stringify(message));
                         }
