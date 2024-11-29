@@ -13,7 +13,7 @@
                     <div class="button-group">
                         <div class="toggle-switch">
                             <label class="switch">
-                                <input type="checkbox" id="detection-toggle" checked>
+                                <input type="checkbox" id="detection-toggle" disabled>
                                 <span class="slider round"></span>
                             </label>
                             <span class="toggle-label">YOLO Detection</span>
@@ -64,7 +64,7 @@
             const ocrContent = document.querySelector('.ocr-content');
             const barcodeContent = document.querySelector('.barcode-content');
             let websocket;
-            let detectionEnabled = true;
+            let detectionEnabled = false;
             let ocrEnabled = false;
             let barcodeEnabled = false;
             const detectionToggle = document.getElementById('detection-toggle');
@@ -84,6 +84,7 @@
             });
 
             // Enable toggles
+            document.getElementById('detection-toggle').disabled = false;
             document.getElementById('ocr-toggle').disabled = false;
             document.getElementById('barcode-toggle').disabled = false;
 
