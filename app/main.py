@@ -1,16 +1,17 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 import cv2
 import numpy as np
-from PIL import Image
-from transformers import pipeline
+import time
+import asyncio
+from ultralytics import YOLO
 import torch
 
 # Check if GPU is available
-device = 0 if torch.cuda.is_available() else -1
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Load YOLO object detection pipeline
-detector = pipeline(task="object-detection", model="hustvl/yolos-tiny", device=device)
+# Load YOLO model
+model = YOLO("yolov8n.pt")
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -42,10 +43,22 @@ html = """
             }
             .video-wrapper {
                 text-align: center;
+                position: relative;
             }
             video, canvas {
                 border: 2px solid #ffffff;
                 border-radius: 8px;
+            }
+            .fps-counter {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                background: rgba(0, 0, 0, 0.5);
+                color: white;
+                padding: 5px;
+                border-radius: 5px;
+                font-family: Arial, sans-serif;
+                font-size: 14px;
             }
             h1 {
                 margin-bottom: 20px;
@@ -58,6 +71,7 @@ html = """
             <div class="video-wrapper">
                 <label for="video">Original Webcam Feed</label><br>
                 <video id="video" autoplay muted playsinline style="width: 640px; height: 480px;"></video>
+                <div id="fps-counter" class="fps-counter">FPS: --</div>
             </div>
             <div class="video-wrapper">
                 <label for="canvas">Processed Detection Feed</label><br>
@@ -68,7 +82,8 @@ html = """
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
-            const websocket = new WebSocket("ws://localhost:8000/ws");
+            const fpsCounter = document.getElementById('fps-counter');
+            let websocket;
 
             async function startVideo() {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -78,27 +93,47 @@ html = """
                 const track = stream.getVideoTracks()[0];
                 const imageCapture = new ImageCapture(track);
 
+                // Establish WebSocket connection
+                connectWebSocket();
+
                 // Continuously send frames to the server
+                let lastFrameTime = performance.now();
                 setInterval(async () => {
+                    const now = performance.now();
+                    const fps = (1000 / (now - lastFrameTime)).toFixed(1);
+                    lastFrameTime = now;
+                    fpsCounter.textContent = `FPS: ${fps}`;
+
                     const blob = await imageCapture.grabFrame();
                     const canvasBlob = await createImageBitmap(blob);
                     canvas.width = canvasBlob.width;
                     canvas.height = canvasBlob.height;
                     context.drawImage(canvasBlob, 0, 0);
-                    
+
                     canvas.toBlob((blob) => {
-                        websocket.send(blob);
-                    }, 'image/jpeg');
+                        if (websocket.readyState === WebSocket.OPEN) {
+                            websocket.send(blob);
+                        }
+                    }, "image/jpeg");
                 }, 100);
             }
 
-            websocket.onmessage = (event) => {
-                const img = new Image();
-                img.src = URL.createObjectURL(event.data);
-                img.onload = () => {
-                    context.drawImage(img, 0, 0);
+            function connectWebSocket() {
+                websocket = new WebSocket("ws://localhost:8000/ws");
+
+                websocket.onmessage = (event) => {
+                    const img = new Image();
+                    img.src = URL.createObjectURL(event.data);
+                    img.onload = () => {
+                        context.drawImage(img, 0, 0);
+                    };
                 };
-            };
+
+                websocket.onclose = () => {
+                    console.warn("WebSocket closed. Reconnecting...");
+                    setTimeout(connectWebSocket, 1000);
+                };
+            }
 
             startVideo();
         </script>
@@ -112,37 +147,47 @@ async def get():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
+    try:
+        await websocket.accept()
 
-    while True:
-        try:
-            # Receive the frame from the client
-            frame = await websocket.receive_bytes()
-            nparr = np.frombuffer(frame, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        while True:
+            try:
+                # Receive and decode frame
+                frame = await websocket.receive_bytes()
+                nparr = np.frombuffer(frame, np.uint8)
+                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-            # Convert OpenCV frame to RGB and PIL image
-            frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            pil_image = Image.fromarray(frame_rgb)
+                # Perform object detection
+                results = model.predict(img, conf=0.5, device=device, stream=True)
 
-            # Perform object detection
-            results = detector(pil_image)
+                # Draw bounding boxes
+                for result in results:
+                    for box in result.boxes:
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        label = model.names[int(box.cls[0])]
+                        score = box.conf[0]
 
-            # Draw bounding boxes on the frame
-            for result in results:
-                box = result["box"]
-                label = result["label"]
-                score = result["score"]
+                        # Draw rectangle and label
+                        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.putText(
+                            img,
+                            f"{label} ({score:.2f})",
+                            (x1, max(y1 - 10, 0)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            (0, 255, 0),
+                            2,
+                        )
 
-                x1, y1, x2, y2 = int(box["xmin"]), int(box["ymin"]), int(box["xmax"]), int(box["ymax"])
-                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(img, f"{label} ({score:.2f})", (x1, y1 - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                # Send processed frame
+                _, buffer = cv2.imencode(".jpg", img)
+                await websocket.send_bytes(buffer.tobytes())
 
-            # Encode the processed frame as JPEG and send it back
-            _, buffer = cv2.imencode('.jpg', img)
-            await websocket.send_bytes(buffer.tobytes())
+            except Exception as e:
+                print(f"Frame processing error: {e}")
+                continue
 
-        except Exception as e:
-            print(f"Error: {e}")
-            break
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
