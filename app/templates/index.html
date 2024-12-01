@@ -8,90 +8,97 @@
     <body>
         <h1>Estate Eyes Real-Time Object Detection</h1>
         <div class="video-container">
-            <div class="video-wrapper">
-                <label for="canvas">Real-Time Detection Feed Selection</label><br>
-                <div class="controls">
-                    <div class="button-group">
-                        <div class="toggle-switch">
-                            <label class="switch">
-                                <input type="checkbox" id="detection-toggle" disabled>
-                                <span class="slider round"></span>
-                            </label>
-                            <span class="toggle-label">YOLO Detection</span>
-                        </div>
-                        <div class="toggle-switch">
-                            <label class="switch">
-                                <input type="checkbox" id="ocr-toggle" disabled>
-                                <span class="slider round"></span>
-                            </label>
-                            <span class="toggle-label">OCR</span>
-                        </div>
-                        <div class="toggle-switch">
-                            <label class="switch">
-                                <input type="checkbox" id="barcode-toggle" disabled>
-                                <span class="slider round"></span>
-                            </label>
-                            <span class="toggle-label">Barcode/QR</span>
+            <div class="top-row">
+                <div class="video-wrapper">
+                    <label for="canvas">Real-Time Detection Feed Selection</label><br>
+                    <div class="controls">
+                        <div class="button-group">
+                            <div class="toggle-switch">
+                                <label class="switch">
+                                    <input type="checkbox" id="detection-toggle" disabled>
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="toggle-label">YOLO Detection</span>
+                            </div>
+                            <div class="toggle-switch">
+                                <label class="switch">
+                                    <input type="checkbox" id="ocr-toggle" disabled>
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="toggle-label">OCR</span>
+                            </div>
+                            <div class="toggle-switch">
+                                <label class="switch">
+                                    <input type="checkbox" id="barcode-toggle" disabled>
+                                    <span class="slider round"></span>
+                                </label>
+                                <span class="toggle-label">Barcode/QR</span>
+                            </div>
                         </div>
                     </div>
+                    <video id="video" style="display: none;"></video>
+                    <canvas id="canvas" style="width: 640px; height: 480px;"></canvas>
+                    <div id="fps-counter" class="fps-counter">FPS: --</div>
                 </div>
-                <video id="video" style="display: none;"></video>
-                <canvas id="canvas" style="width: 640px; height: 480px;"></canvas>
-                <div id="fps-counter" class="fps-counter">FPS: --</div>
-            </div>
-            <div class="text-output">
-                <label>Detected Text</label>
-                <div class="text-sections">
-                    <div class="section">
-                        <h3>OCR Results</h3>
-                        <div class="text-content ocr-content">
-                            <p>No text detected yet...</p>
+                <div class="text-output">
+                    <label>Detected Text</label>
+                    <div class="text-sections">
+                        <div class="section">
+                            <h3>OCR Results</h3>
+                            <div class="text-content ocr-content">
+                                <p>No text detected yet...</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="section">
-                        <h3>Barcode/QR Results</h3>
-                        <div class="text-content barcode-content">
-                            <p>No codes detected yet...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="text-output ai-search">
-                <div class="search-header">
-                    <label>AI Snapshot Search Results</label>
-                    <button id="ai-search-btn" class="ai-search-btn">Search</button>
-                </div>
-                <div class="text-sections">
-                    <div class="section">
-                        <h3>Claude Analysis</h3>
-                        <div class="text-content claude-content">
-                            <p>AI-generated analysis will appear here...</p>
-                        </div>
-                    </div>
-                    <div class="section">
-                        <h3>Online Search Results</h3>
-                        <div class="text-content tavily-content">
-                            <p>Related online search results will appear here...</p>
+                        <div class="section">
+                            <h3>Barcode/QR Results</h3>
+                            <div class="text-content barcode-content">
+                                <p>No codes detected yet...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="bottom-container">
-            <div class="ai-question-container">
-                <label for="ai-question">AI Summary Question:</label>
-                <textarea id="ai-question" class="ai-question-input">Please summarise the maintenance procedures and common things to look for in terms of wear and tear.</textarea>
-            </div>
-            <div class="text-output ai-context">
-                <div class="search-header">
-                    <label>AI Context Summary</label>
-                    <button id="ai-context-btn" class="ai-context-btn" disabled>Analyse Context</button>
+            
+            <div class="bottom-row">
+                <div class="text-output ai-search">
+                    <div class="search-header">
+                        <label>AI Snapshot Search Results</label>
+                        <button id="ai-search-btn" class="ai-search-btn">Search</button>
+                    </div>
+                    <div class="text-sections">
+                        <div class="section">
+                            <h3>Claude Analysis</h3>
+                            <div class="text-content claude-content">
+                                <p>AI-generated analysis will appear here...</p>
+                                <div class="loading-spinner"></div>
+                                <p class="loading-text" style="display: none;">Waiting for analysis...</p>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <h3>Online Search Results</h3>
+                            <div class="text-content tavily-content">
+                                <p>Related online search results will appear here...</p>
+                                <div class="loading-spinner"></div>
+                                <p class="loading-text" style="display: none;">Searching online...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-sections">
-                    <div class="section">
-                        <div class="text-content context-content">
-                            <p>Context analysis will appear here...</p>
+                
+                <div class="text-output ai-combined">
+                    <div class="text-sections">
+                        <div class="section ai-question-section">
+                            <h3>AI Summary Question</h3>
+                            <textarea id="ai-question" class="ai-question-input">Please summarise the maintenance procedures and common things to look for in terms of wear and tear.</textarea>
+                            <button id="ai-context-btn" class="ai-context-btn" disabled>Analyse Context</button>
+                        </div>
+                        <div class="section context-section">
+                            <h3>AI Context Summary</h3>
+                            <div class="text-content context-content">
+                                <p>Context analysis will appear here...</p>
+                                <div class="loading-spinner"></div>
+                                <p class="loading-text" style="display: none;">Analysing context...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -235,6 +242,12 @@
                 const claudeContent = document.querySelector('.claude-content');
                 const tavilyContent = document.querySelector('.tavily-content');
                 
+                // Show loading state and text
+                claudeContent.classList.add('loading');
+                tavilyContent.classList.add('loading');
+                claudeContent.querySelector('.loading-text').style.display = 'block';
+                tavilyContent.querySelector('.loading-text').style.display = 'block';
+                
                 // Get current OCR and barcode texts
                 const ocr_texts = Array.from(ocrContent.querySelectorAll('p')).map(p => p.textContent);
                 const barcode_texts = Array.from(barcodeContent.querySelectorAll('p')).map(p => p.textContent);
@@ -258,6 +271,11 @@
                         
                         const data = await response.json();
                         if (data.analysis) {
+                            claudeContent.classList.remove('loading');
+                            tavilyContent.classList.remove('loading');
+                            claudeContent.querySelector('.loading-text').style.display = 'none';
+                            tavilyContent.querySelector('.loading-text').style.display = 'none';
+                            
                             claudeContent.innerHTML = `<p>${data.analysis.claude.replace(/\n/g, '<br>')}</p>`;
                             
                             if (data.analysis.tavily.length > 0) {
@@ -273,10 +291,13 @@
                                 tavilyContent.innerHTML = '<p>No online search results found</p>';
                             }
                             
-                            // Enable context button if we have search results
                             aiContextBtn.disabled = data.analysis.tavily.length === 0;
                         }
                     } catch (error) {
+                        claudeContent.classList.remove('loading');
+                        tavilyContent.classList.remove('loading');
+                        claudeContent.querySelector('.loading-text').style.display = 'none';
+                        tavilyContent.querySelector('.loading-text').style.display = 'none';
                         claudeContent.innerHTML = '<p>Error in analysis</p>';
                         tavilyContent.innerHTML = '<p>Error in search results</p>';
                     }
@@ -284,6 +305,12 @@
             });
 
             aiContextBtn.addEventListener('click', async () => {
+                const contextContent = document.querySelector('.context-content');
+                
+                // Show loading state and text
+                contextContent.classList.add('loading');
+                contextContent.querySelector('.loading-text').style.display = 'block';
+                
                 try {
                     const response = await fetch('/analyze_context', {
                         method: 'POST',
@@ -296,11 +323,16 @@
                     });
                     
                     const data = await response.json();
+                    contextContent.classList.remove('loading');
+                    contextContent.querySelector('.loading-text').style.display = 'none';
+                    
                     if (data.summary) {
                         contextContent.innerHTML = `<p>${data.summary.replace(/\n/g, '<br>')}</p>`;
                     }
                 } catch (error) {
-                    contextContent.innerHTML = '<p>Error analyzing context</p>';
+                    contextContent.classList.remove('loading');
+                    contextContent.querySelector('.loading-text').style.display = 'none';
+                    contextContent.innerHTML = '<p>Error analysing context</p>';
                 }
             });
 

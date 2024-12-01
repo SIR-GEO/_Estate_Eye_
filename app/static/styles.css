@@ -11,7 +11,7 @@ body {
 }
 .video-container {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     gap: 20px;
     align-items: flex-start;
 }
@@ -144,7 +144,8 @@ input:checked + .slider:before {
 }
 
 .text-output.ai-search {
-    margin-left: 20px;
+    margin-left: 0;
+    width: 400px;
 }
 
 .text-sections {
@@ -366,4 +367,91 @@ hr {
 .tavily-content::-webkit-scrollbar-thumb {
     background-color: rgba(255, 255, 255, 0.3);
     border-radius: 4px;
+}
+
+.top-row {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+}
+
+.bottom-row {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    margin-top: 20px;
+    width: 100%;
+    max-width: 1280px;
+    justify-content: flex-start;
+}
+
+.text-output.ai-combined {
+    width: 400px;
+    height: 480px;
+    margin: 0;
+}
+
+.ai-combined .text-sections {
+    height: calc(100% - 50px);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ai-question-section {
+    flex: 0 0 auto;
+    margin-bottom: 10px;
+}
+
+.ai-question-input {
+    width: 100%;
+    height: 80px;
+    min-height: 80px;
+    max-height: 80px;
+    resize: none;
+}
+
+.context-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.context-content {
+    height: calc(100% - 40px);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Add loading animation styles */
+.loading-spinner {
+    display: none;
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #2196F3;
+    animation: spin 1s ease-in-out infinite;
+    margin: auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.loading .loading-spinner,
+.loading .loading-text {
+    display: block;
+}
+
+.loading > p:not(.loading-text) {
+    display: none;
 }
