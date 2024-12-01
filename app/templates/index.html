@@ -44,7 +44,6 @@
                     </div>
                     <video id="video" style="display: none;"></video>
                     <canvas id="canvas" style="width: 640px; height: 480px;"></canvas>
-                    <div id="fps-counter" class="fps-counter">FPS: --</div>
                 </div>
                 <div class="text-output">
                     <label>1. Detected Text 📝</label>
@@ -133,6 +132,7 @@
             const cameraToggle = document.getElementById('camera-toggle');
             let currentCameraIndex = 0;
             let availableCameras = [];
+            let canCapture = true;
 
             detectionToggle.addEventListener('change', (e) => {
                 detectionEnabled = e.target.checked;
@@ -179,6 +179,9 @@
                         img.onload = () => {
                             context.drawImage(img, 0, 0);
                             URL.revokeObjectURL(img.src);
+
+                            canCapture = true; // Allow capturing the next frame
+                            updateFrame();     // Capture and send the next frame
                         };
                     } else {
                         try {
@@ -193,6 +196,35 @@
                         }
                     }
                 };
+            }
+
+            async function updateFrame() {
+                if (!canCapture) return;
+
+                try {
+                    const track = video.srcObject.getVideoTracks()[0];
+                    const imageCapture = new ImageCapture(track);
+                    const frame = await imageCapture.grabFrame();
+                    canvas.width = frame.width;
+                    canvas.height = frame.height;
+                    context.drawImage(frame, 0, 0);
+
+                    canvas.toBlob(async (blob) => {
+                        if (websocket && websocket.readyState === WebSocket.OPEN) {
+                            const arrayBuffer = await blob.arrayBuffer();
+                            const message = {
+                                frame: Array.from(new Uint8Array(arrayBuffer)),
+                                detection: detectionEnabled,
+                                ocr: ocrEnabled,
+                                barcode: barcodeEnabled
+                            };
+                            websocket.send(JSON.stringify(message));
+                            canCapture = false; // Prevent capturing new frame until processed frame is received
+                        }
+                    }, "image/jpeg");
+                } catch (error) {
+                    console.error('Error capturing frame:', error);
+                }
             }
 
             async function getAvailableCameras() {
@@ -231,50 +263,11 @@
                     video.srcObject = stream;
                     await video.play();
 
-                    const track = stream.getVideoTracks()[0];
-                    const imageCapture = new ImageCapture(track);
-
                     // Establish WebSocket connection
                     connectWebSocket();
 
-                    // Replace the setInterval with requestAnimationFrame for more accurate timing
-                    let frameCount = 0;
-                    let lastFPSUpdate = performance.now();
-
-                    async function updateFrame() {
-                        const now = performance.now();
-                        frameCount++;
-
-                        if (now - lastFPSUpdate >= 1000) {
-                            const fps = Math.round(frameCount * 1000 / (now - lastFPSUpdate));
-                            fpsCounter.textContent = `FPS: ${fps}`;
-                            frameCount = 0;
-                            lastFPSUpdate = now;
-                        }
-
-                        const blob = await imageCapture.grabFrame();
-                        const canvasBlob = await createImageBitmap(blob);
-                        canvas.width = canvasBlob.width;
-                        canvas.height = canvasBlob.height;
-                        context.drawImage(canvasBlob, 0, 0);
-
-                        canvas.toBlob(async (blob) => {
-                            if (websocket && websocket.readyState === WebSocket.OPEN) {
-                                const arrayBuffer = await blob.arrayBuffer();
-                                const message = {
-                                    frame: Array.from(new Uint8Array(arrayBuffer)),
-                                    detection: detectionEnabled,
-                                    ocr: ocrEnabled,
-                                    barcode: barcodeEnabled
-                                };
-                                websocket.send(JSON.stringify(message));
-                            }
-                        }, "image/jpeg");
-
-                        requestAnimationFrame(updateFrame);
-                    }
-
-                    requestAnimationFrame(updateFrame);
+                    // Start capturing frames
+                    updateFrame();
                 } catch (error) {
                     console.error('Error starting video:', error);
                     // Show user-friendly error message
@@ -457,7 +450,7 @@
                 }
             });
 
-            startVideo();
+            window.addEventListener('load', startVideo);
         </script>
     </body>
 </html>
