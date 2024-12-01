@@ -196,8 +196,14 @@
             }
 
             async function getAvailableCameras() {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                return devices.filter(device => device.kind === 'videoinput');
+                try {
+                    await navigator.mediaDevices.getUserMedia({ video: true }); // Request initial permission
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    return devices.filter(device => device.kind === 'videoinput');
+                } catch (error) {
+                    console.error('Error getting cameras:', error);
+                    return [];
+                }
             }
 
             async function startVideo() {
@@ -208,13 +214,20 @@
                     // Enable camera toggle if multiple cameras are available
                     cameraToggle.disabled = availableCameras.length <= 1;
                     
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { 
-                            deviceId: availableCameras.length > 0 ? 
-                                { exact: availableCameras[currentCameraIndex].deviceId } : undefined 
-                        } 
-                    });
+                    // Set constraints based on available cameras
+                    let constraints = {
+                        video: {
+                            facingMode: 'environment', // Prefer rear camera on mobile
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    };
                     
+                    if (availableCameras.length > 0 && currentCameraIndex < availableCameras.length) {
+                        constraints.video.deviceId = { exact: availableCameras[currentCameraIndex].deviceId };
+                    }
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
                     video.srcObject = stream;
                     await video.play();
 
@@ -264,6 +277,8 @@
                     requestAnimationFrame(updateFrame);
                 } catch (error) {
                     console.error('Error starting video:', error);
+                    // Show user-friendly error message
+                    alert('Unable to access camera. Please ensure camera permissions are granted and the device is working properly.');
                 }
             }
 
@@ -403,25 +418,42 @@
             });
 
             cameraToggle.addEventListener('click', async () => {
-                currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-                
-                // Stop current stream
-                const stream = video.srcObject;
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
-                
-                // Start new stream with selected camera
                 try {
-                    const newStream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            deviceId: { exact: availableCameras[currentCameraIndex].deviceId }
-                        }
-                    });
-                    video.srcObject = newStream;
-                    await video.play();
+                    // Refresh available cameras list
+                    availableCameras = await getAvailableCameras();
+                    
+                    if (availableCameras.length === 0) {
+                        alert('No cameras detected on your device.');
+                        return;
+                    }
+                    
+                    // Update camera index
+                    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+                    
+                    // Stop current stream
+                    const stream = video.srcObject;
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    // Start new stream with selected camera
+                    try {
+                        const newStream = await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                deviceId: { exact: availableCameras[currentCameraIndex].deviceId },
+                                width: { ideal: 1280 },
+                                height: { ideal: 720 }
+                            }
+                        });
+                        video.srcObject = newStream;
+                        await video.play();
+                    } catch (error) {
+                        console.error('Error switching camera:', error);
+                        alert('Failed to switch camera. Please try again.');
+                    }
                 } catch (error) {
-                    console.error('Error switching camera:', error);
+                    console.error('Error in camera toggle:', error);
+                    alert('Error switching between cameras. Please check permissions and try again.');
                 }
             });
 
