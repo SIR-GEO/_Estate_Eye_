@@ -16,12 +16,15 @@ body {
     align-items: flex-start;
 }
 .video-wrapper {
-    text-align: center;
+    text-align: left;
     position: relative;
+    width: 100%;
 }
 video, canvas {
     border: 2px solid #ffffff;
     border-radius: 8px;
+    display: block;
+    margin-right: auto;
 }
 .fps-counter {
     position: absolute;
@@ -533,4 +536,30 @@ hr {
     .context-content {
         height: 200px !important;
     }
+}
+
+.camera-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+    width: 100%;
+}
+
+.camera-btn:hover {
+    background-color: #1976D2;
+}
+
+.camera-btn:active {
+    background-color: #1565C0;
+}
+
+.camera-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.5;
 }

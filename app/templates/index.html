@@ -35,6 +35,11 @@
                                 </label>
                                 <span class="toggle-label">Barcode/QR 📦</span>
                             </div>
+                            <div class="toggle-switch">
+                                <button id="camera-toggle" class="camera-btn" disabled>
+                                    Switch Camera 📸
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <video id="video" style="display: none;"></video>
@@ -125,6 +130,9 @@
             const aiContextBtn = document.getElementById('ai-context-btn');
             const contextContent = document.querySelector('.context-content');
             const aiQuestion = document.getElementById('ai-question');
+            const cameraToggle = document.getElementById('camera-toggle');
+            let currentCameraIndex = 0;
+            let availableCameras = [];
 
             detectionToggle.addEventListener('change', (e) => {
                 detectionEnabled = e.target.checked;
@@ -187,55 +195,76 @@
                 };
             }
 
+            async function getAvailableCameras() {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                return devices.filter(device => device.kind === 'videoinput');
+            }
+
             async function startVideo() {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                video.play();
+                try {
+                    // Get available cameras
+                    availableCameras = await getAvailableCameras();
+                    
+                    // Enable camera toggle if multiple cameras are available
+                    cameraToggle.disabled = availableCameras.length <= 1;
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            deviceId: availableCameras.length > 0 ? 
+                                { exact: availableCameras[currentCameraIndex].deviceId } : undefined 
+                        } 
+                    });
+                    
+                    video.srcObject = stream;
+                    await video.play();
 
-                const track = stream.getVideoTracks()[0];
-                const imageCapture = new ImageCapture(track);
+                    const track = stream.getVideoTracks()[0];
+                    const imageCapture = new ImageCapture(track);
 
-                // Establish WebSocket connection
-                connectWebSocket();
+                    // Establish WebSocket connection
+                    connectWebSocket();
 
-                // Replace the setInterval with requestAnimationFrame for more accurate timing
-                let frameCount = 0;
-                let lastFPSUpdate = performance.now();
+                    // Replace the setInterval with requestAnimationFrame for more accurate timing
+                    let frameCount = 0;
+                    let lastFPSUpdate = performance.now();
 
-                async function updateFrame() {
-                    const now = performance.now();
-                    frameCount++;
+                    async function updateFrame() {
+                        const now = performance.now();
+                        frameCount++;
 
-                    if (now - lastFPSUpdate >= 1000) {
-                        const fps = Math.round(frameCount * 1000 / (now - lastFPSUpdate));
-                        fpsCounter.textContent = `FPS: ${fps}`;
-                        frameCount = 0;
-                        lastFPSUpdate = now;
+                        if (now - lastFPSUpdate >= 1000) {
+                            const fps = Math.round(frameCount * 1000 / (now - lastFPSUpdate));
+                            fpsCounter.textContent = `FPS: ${fps}`;
+                            frameCount = 0;
+                            lastFPSUpdate = now;
+                        }
+
+                        const blob = await imageCapture.grabFrame();
+                        const canvasBlob = await createImageBitmap(blob);
+                        canvas.width = canvasBlob.width;
+                        canvas.height = canvasBlob.height;
+                        context.drawImage(canvasBlob, 0, 0);
+
+                        canvas.toBlob(async (blob) => {
+                            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                                const arrayBuffer = await blob.arrayBuffer();
+                                const message = {
+                                    frame: Array.from(new Uint8Array(arrayBuffer)),
+                                    detection: detectionEnabled,
+                                    ocr: ocrEnabled,
+                                    barcode: barcodeEnabled
+                                };
+                                websocket.send(JSON.stringify(message));
+                            }
+                        }, "image/jpeg");
+
+                        requestAnimationFrame(updateFrame);
                     }
 
-                    const blob = await imageCapture.grabFrame();
-                    const canvasBlob = await createImageBitmap(blob);
-                    canvas.width = canvasBlob.width;
-                    canvas.height = canvasBlob.height;
-                    context.drawImage(canvasBlob, 0, 0);
-
-                    canvas.toBlob(async (blob) => {
-                        if (websocket && websocket.readyState === WebSocket.OPEN) {
-                            const arrayBuffer = await blob.arrayBuffer();
-                            const message = {
-                                frame: Array.from(new Uint8Array(arrayBuffer)),
-                                detection: detectionEnabled,
-                                ocr: ocrEnabled,
-                                barcode: barcodeEnabled
-                            };
-                            websocket.send(JSON.stringify(message));
-                        }
-                    }, "image/jpeg");
-
                     requestAnimationFrame(updateFrame);
+                } catch (error) {
+                    console.error('Error starting video:', error);
                 }
-
-                requestAnimationFrame(updateFrame);
             }
 
             aiSearchBtn.addEventListener('click', async () => {
@@ -370,6 +399,29 @@
                 } catch (error) {
                     contextContent.classList.remove('loading');
                     contextContent.innerHTML = '<p>Error analysing context</p>';
+                }
+            });
+
+            cameraToggle.addEventListener('click', async () => {
+                currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+                
+                // Stop current stream
+                const stream = video.srcObject;
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Start new stream with selected camera
+                try {
+                    const newStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            deviceId: { exact: availableCameras[currentCameraIndex].deviceId }
+                        }
+                    });
+                    video.srcObject = newStream;
+                    await video.play();
+                } catch (error) {
+                    console.error('Error switching camera:', error);
                 }
             });
 
