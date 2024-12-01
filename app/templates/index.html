@@ -6,11 +6,11 @@
         <base href="{{ request.base_url }}">
     </head>
     <body>
-        <h1>Estate Eyes | Real-Time Object Detection</h1>
+        <h1>Estate Eyes | Real-Time Object Detection 🎥</h1>
         <div class="video-container">
             <div class="top-row">
                 <div class="video-wrapper">
-                    <label for="canvas">Real-Time Detection Feed Selection</label><br>
+                    <label for="canvas">Real-Time Detection Feed Selection 📷</label><br>
                     <div class="controls">
                         <div class="button-group">
                             <div class="toggle-switch">
@@ -18,21 +18,21 @@
                                     <input type="checkbox" id="detection-toggle" disabled>
                                     <span class="slider round"></span>
                                 </label>
-                                <span class="toggle-label">YOLO Detection</span>
+                                <span class="toggle-label">YOLO Detection 🚀</span>
                             </div>
                             <div class="toggle-switch">
                                 <label class="switch">
                                     <input type="checkbox" id="ocr-toggle" disabled>
                                     <span class="slider round"></span>
                                 </label>
-                                <span class="toggle-label">OCR</span>
+                                <span class="toggle-label">OCR 🔍</span>
                             </div>
                             <div class="toggle-switch">
                                 <label class="switch">
                                     <input type="checkbox" id="barcode-toggle" disabled>
                                     <span class="slider round"></span>
                                 </label>
-                                <span class="toggle-label">Barcode/QR</span>
+                                <span class="toggle-label">Barcode/QR 📦</span>
                             </div>
                         </div>
                     </div>
@@ -41,18 +41,18 @@
                     <div id="fps-counter" class="fps-counter">FPS: --</div>
                 </div>
                 <div class="text-output">
-                    <label>Detected Text</label>
+                    <label>1. Detected Text 📝</label>
                     <div class="text-sections">
                         <div class="section">
-                            <h3>OCR Results</h3>
+                            <h3>OCR Results 📄</h3>
                             <div class="text-content ocr-content">
-                                <p>No text detected yet...</p>
+                                <p>No text detected yet... 🤔</p>
                             </div>
                         </div>
                         <div class="section">
-                            <h3>Barcode/QR Results</h3>
+                            <h3>Barcode/QR Results 📜</h3>
                             <div class="text-content barcode-content">
-                                <p>No codes detected yet...</p>
+                                <p>No codes detected yet... 🚫</p>
                             </div>
                         </div>
                     </div>
@@ -62,24 +62,24 @@
             <div class="bottom-row">
                 <div class="text-output ai-search">
                     <div class="search-header">
-                        <label>AI Snapshot Search Results</label>
-                        <button id="ai-search-btn" class="ai-search-btn">Search</button>
+                        <label>2. Snapshot Search Results 🔍</label>
+                        <button id="ai-search-btn" class="ai-search-btn">LLM Search 🔎</button>
                     </div>
                     <div class="text-sections">
                         <div class="section">
-                            <h3>Claude Analysis</h3>
+                            <h3>LLM Analysis 📊</h3>
                             <div class="text-content claude-content">
-                                <p>AI-generated analysis will appear here...</p>
+                                <p>LLM-generated analysis will appear here... 🧠</p>
                                 <div class="loading-spinner"></div>
-                                <p class="loading-text" style="display: none;">Waiting for analysis...</p>
+                                <p class="loading-text" style="display: none;">Waiting for analysis... ⏳</p>
                             </div>
                         </div>
                         <div class="section">
-                            <h3>Online Search Results</h3>
+                            <h3>Online Search Results 🌐</h3>
                             <div class="text-content tavily-content">
-                                <p>Related online search results will appear here...</p>
+                                <p>Related online search results will appear here... 🌍</p>
                                 <div class="loading-spinner"></div>
-                                <p class="loading-text" style="display: none;">Searching online...</p>
+                                <p class="loading-text" style="display: none;">Searching online using the LLM search terms... 🔄</p>
                             </div>
                         </div>
                     </div>
@@ -88,16 +88,17 @@
                 <div class="text-output ai-combined">
                     <div class="text-sections">
                         <div class="section ai-question-section">
-                            <h3>AI Summary Question</h3>
+                            <label>3. Question Search Results ❓</label>
+                            <h3>User Question 🤔</h3>
                             <textarea id="ai-question" class="ai-question-input">Please summarise the maintenance procedures and common things to look for in terms of wear and tear.</textarea>
-                            <button id="ai-context-btn" class="ai-context-btn" disabled>Analyse Context</button>
+                            <button id="ai-context-btn" class="ai-context-btn" disabled>LLM Search Summary 📜</button>
                         </div>
                         <div class="section context-section">
-                            <h3>AI Context Summary</h3>
+                            <h3>LLM Search Summary 📋</h3>
                             <div class="text-content context-content">
-                                <p>Context analysis will appear here...</p>
+                                <p>LLM generated online search analysis will appear here... 📑</p>
                                 <div class="loading-spinner"></div>
-                                <p class="loading-text" style="display: none;">Analysing context...</p>
+                                <p class="loading-text" style="display: none;">Analysing context... 🔍</p>
                             </div>
                         </div>
                     </div>

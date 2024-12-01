@@ -218,7 +218,7 @@ class AIAnalyzer:
                     "role": "user",
                     "content": prompt
                 }],
-                system="You are an expert analyst. Your task is to answer the user's question based on the provided context. Focus on relevant information and provide a clear, concise summary.",
+                system="You are an expert analyst. Your task is to answer the user's question based on the provided context. Focus on relevant information and provide a clear, concise summary. Use emojis where appropriate",
             )
             
             return response.content[0].text if response and response.content else "No analysis available"
