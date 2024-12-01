@@ -12,7 +12,7 @@ from .utils.model import initialize_model
 import time
 import torch
 from pyzbar.pyzbar import decode
-from .utils.ai_utils import AIAnalyzer
+from .utils.ai_utils import AIAnalyzer, scrape_url
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -244,6 +244,18 @@ async def analyze_snapshot(request: Request):
         
         analysis = await ai_analyzer.analyze_snapshot(img, ocr_texts, barcode_texts)
         return {"analysis": analysis}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/analyze_context")
+async def analyze_context(request: Request):
+    try:
+        data = await request.json()
+        question = data.get('question')
+        
+        # Get the context from the URLs
+        context = await ai_analyzer.analyze_context(question)
+        return {"summary": context}
     except Exception as e:
         return {"error": str(e)}
 

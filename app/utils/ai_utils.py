@@ -4,10 +4,61 @@ from anthropic import Anthropic
 from tavily import TavilyClient
 import os
 from dotenv import load_dotenv
+import aiohttp
+from bs4 import BeautifulSoup
+import asyncio
+import PyPDF2
+import io
+import urllib.parse
 
 # Only load .env if it exists
 if os.path.exists(".env"):
     load_dotenv()
+
+async def scrape_url(url):
+    async with aiohttp.ClientSession() as session:
+        try:
+            # Check if URL is a PDF
+            is_pdf = url.lower().endswith('.pdf') or '.pdf' in urllib.parse.urlparse(url).path.lower()
+            
+            async with session.get(url) as response:
+                if response.status == 200:
+                    if is_pdf:
+                        # Handle PDF content
+                        pdf_content = await response.read()
+                        pdf_text = extract_pdf_text(pdf_content)
+                        return pdf_text
+                    else:
+                        # Handle HTML content
+                        html = await response.text()
+                        soup = BeautifulSoup(html, 'html.parser')
+                        # Remove script and style elements
+                        for script in soup(["script", "style"]):
+                            script.decompose()
+                        return soup.get_text()
+                return ""
+        except Exception as e:
+            print(f"Error scraping URL {url}: {str(e)}")
+            return ""
+
+def extract_pdf_text(pdf_content):
+    try:
+        # Create a PDF file-like object from the content
+        pdf_file = io.BytesIO(pdf_content)
+        
+        # Create PDF reader object
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        
+        # Extract text from all pages
+        text = []
+        for page in pdf_reader.pages:
+            text.append(page.extract_text())
+        
+        # Join all pages with newlines
+        return "\n".join(text)
+    except Exception as e:
+        print(f"Error extracting PDF text: {str(e)}")
+        return ""
 
 class AIAnalyzer:
     def __init__(self):
@@ -25,6 +76,8 @@ class AIAnalyzer:
             raise ValueError("TAVILY_API_KEY environment variable is not set")
             
         self.tavily_client = TavilyClient(api_key=tavily_key)
+        
+        self.last_tavily_results = []
         
     def get_image_base64(self, image):
         _, buffer = cv2.imencode('.jpg', image)
@@ -100,6 +153,10 @@ class AIAnalyzer:
                     except Exception as search_error:
                         print(f"Tavily search error for term '{term}': {search_error}")
 
+            # Store Tavily results for context analysis
+            if tavily_results:
+                self.last_tavily_results = tavily_results
+            
             return {
                 "claude": claude_analysis,
                 "tavily": tavily_results
@@ -107,3 +164,54 @@ class AIAnalyzer:
             
         except Exception as e:
             return {"claude": f"Error during analysis: {str(e)}", "tavily": []}
+        
+    async def analyze_context(self, question):
+        try:
+            if not self.last_tavily_results:
+                return "Please perform an AI snapshot search first to get context for analysis"
+            
+            urls = [result['url'] for result in self.last_tavily_results]
+            if not urls:
+                return "No URLs available for context analysis"
+            
+            # Scrape content from URLs
+            contents = await asyncio.gather(*[scrape_url(url) for url in urls])
+            
+            # Process the combined context: remove empty lines and limit characters
+            processed_contents = []
+            for content in contents:
+                # Remove empty lines and excessive whitespace
+                cleaned_content = '\n'.join(line.strip() for line in content.splitlines() if line.strip())
+                processed_contents.append(cleaned_content)
+            
+            combined_context = ' '.join(processed_contents)
+            
+            # Limit to 850000 characters
+            if len(combined_context) > 850000:
+                combined_context = combined_context[:850000]
+            
+            # Create the prompt with question first
+            prompt = f"Question: {question}\n\nPlease answer the above question using the following context:\n\n{combined_context}"
+            
+            # Log the complete prompt to console
+            print("\n=== CLAUDE CONTEXT ANALYSIS PROMPT ===")
+            print("System prompt:", "You are an expert analyst. Your task is to answer the user's question based on the provided context. Focus on relevant information and provide a clear, concise summary.")
+            print("\nUser prompt:", prompt)
+            print("\nContext length:", len(combined_context), "characters")
+            print("=====================================\n")
+            
+            # Get Claude analysis
+            response = self.anthropic.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=1024,
+                messages=[{
+                    "role": "user",
+                    "content": prompt
+                }],
+                system="You are an expert analyst. Your task is to answer the user's question based on the provided context. Focus on relevant information and provide a clear, concise summary.",
+            )
+            
+            return response.content[0].text if response and response.content else "No analysis available"
+            
+        except Exception as e:
+            return f"Error during context analysis: {str(e)}"

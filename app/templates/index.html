@@ -77,6 +77,26 @@
                 </div>
             </div>
         </div>
+        
+        <div class="bottom-container">
+            <div class="ai-question-container">
+                <label for="ai-question">AI Summary Question:</label>
+                <textarea id="ai-question" class="ai-question-input">Please summarise the maintenance procedures and common things to look for in terms of wear and tear.</textarea>
+            </div>
+            <div class="text-output ai-context">
+                <div class="search-header">
+                    <label>AI Context Summary</label>
+                    <button id="ai-context-btn" class="ai-context-btn" disabled>Analyse Context</button>
+                </div>
+                <div class="text-sections">
+                    <div class="section">
+                        <div class="text-content context-content">
+                            <p>Context analysis will appear here...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <script>
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
@@ -93,6 +113,9 @@
             const barcodeToggle = document.getElementById('barcode-toggle');
             const aiContent = document.querySelector('.ai-content');
             const aiSearchBtn = document.getElementById('ai-search-btn');
+            const aiContextBtn = document.getElementById('ai-context-btn');
+            const contextContent = document.querySelector('.context-content');
+            const aiQuestion = document.getElementById('ai-question');
 
             detectionToggle.addEventListener('change', (e) => {
                 detectionEnabled = e.target.checked;
@@ -249,12 +272,36 @@
                             } else {
                                 tavilyContent.innerHTML = '<p>No online search results found</p>';
                             }
+                            
+                            // Enable context button if we have search results
+                            aiContextBtn.disabled = data.analysis.tavily.length === 0;
                         }
                     } catch (error) {
                         claudeContent.innerHTML = '<p>Error in analysis</p>';
                         tavilyContent.innerHTML = '<p>Error in search results</p>';
                     }
                 }, 'image/jpeg');
+            });
+
+            aiContextBtn.addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/analyze_context', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            question: aiQuestion.value
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (data.summary) {
+                        contextContent.innerHTML = `<p>${data.summary.replace(/\n/g, '<br>')}</p>`;
+                    }
+                } catch (error) {
+                    contextContent.innerHTML = '<p>Error analyzing context</p>';
+                }
             });
 
             startVideo();
