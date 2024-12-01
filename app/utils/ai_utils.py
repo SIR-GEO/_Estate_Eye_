@@ -172,6 +172,11 @@ class AIAnalyzer:
         
     async def analyze_context(self, question):
         try:
+            # First check stored results
+            if not self.last_tavily_results:
+                # Try to get fresh results
+                self.last_tavily_results = await self.analyze_snapshot_tavily()
+            
             if not self.last_tavily_results:
                 return "Please perform an AI snapshot search first to get context for analysis"
             

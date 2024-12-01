@@ -6,7 +6,7 @@
         <base href="{{ request.base_url }}">
     </head>
     <body>
-        <h1>Estate Eyes Real-Time Object Detection</h1>
+        <h1>Estate Eyes | Real-Time Object Detection</h1>
         <div class="video-container">
             <div class="top-row">
                 <div class="video-wrapper">
@@ -295,7 +295,7 @@
                             tavilyContent.classList.remove('loading');
                             tavilyContent.querySelector('.loading-text').style.display = 'none';
                             
-                            if (tavilyData.analysis && tavilyData.analysis.tavily.length > 0) {
+                            if (tavilyData.analysis && tavilyData.analysis.tavily && tavilyData.analysis.tavily.length > 0) {
                                 tavilyContent.innerHTML = tavilyData.analysis.tavily.map(result => `
                                     <div class="search-result">
                                         <h4>Search: ${result.term}</h4>
@@ -305,9 +305,13 @@
                                     </div>
                                 `).join('<hr>');
                                 aiContextBtn.disabled = false;
+                                
+                                // Store the fact that we have valid results
+                                sessionStorage.setItem('hasTavilyResults', 'true');
                             } else {
                                 tavilyContent.innerHTML = '<p>No online search results found</p>';
                                 aiContextBtn.disabled = true;
+                                sessionStorage.removeItem('hasTavilyResults');
                             }
                         }
                     } catch (error) {
@@ -319,6 +323,12 @@
                         tavilyContent.innerHTML = '<p>Error in search results</p>';
                     }
                 }, 'image/jpeg');
+            });
+
+            // Add this to restore button state on page load
+            window.addEventListener('load', () => {
+                const hasTavilyResults = sessionStorage.getItem('hasTavilyResults') === 'true';
+                aiContextBtn.disabled = !hasTavilyResults;
             });
 
             aiContextBtn.addEventListener('click', async () => {

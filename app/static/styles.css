@@ -215,8 +215,18 @@ input:checked + .slider:before {
 }
 
 .ai-question-input {
-    max-height: 150px;
-    overflow-y: auto;
+    width: 350px;
+    height: 80px;
+    min-height: 80px;
+    max-height: 80px;
+    resize: none;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: white;
+    padding: 8px;
+    font-family: Arial, sans-serif;
+    box-sizing: border-box;
 }
 
 .ai-search {
