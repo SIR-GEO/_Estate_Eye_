@@ -4,6 +4,7 @@
         <title>Estate Eyes</title>
         <link rel="stylesheet" href="static/styles.css">
         <base href="{{ request.base_url }}">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     </head>
     <body>
         <h1>Estate Eyes | Real-Time Object Detection 🎥</h1>
@@ -243,11 +244,18 @@
                 const claudeContent = document.querySelector('.claude-content');
                 const tavilyContent = document.querySelector('.tavily-content');
                 
-                // Show loading state and text for both
+                // Reset content and show loading state for both
+                claudeContent.innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <p class="loading-text">Waiting for analysis... ⏳</p>
+                `;
+                tavilyContent.innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <p class="loading-text">Searching online using the LLM search terms... 🔄</p>
+                `;
+                
                 claudeContent.classList.add('loading');
                 tavilyContent.classList.add('loading');
-                claudeContent.querySelector('.loading-text').style.display = 'block';
-                tavilyContent.querySelector('.loading-text').style.display = 'block';
                 
                 // Get current OCR and barcode texts
                 const ocr_texts = Array.from(ocrContent.querySelectorAll('p')).map(p => p.textContent);
@@ -334,18 +342,13 @@
 
             aiContextBtn.addEventListener('click', async () => {
                 const contextContent = document.querySelector('.context-content');
-                const loadingText = contextContent?.querySelector('.loading-text');
                 
-                if (!contextContent) {
-                    console.error('Context content element not found');
-                    return;
-                }
-                
-                // Show loading state
+                // Clear previous content and show loading state
+                contextContent.innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <p class="loading-text">Analysing context... 🔍</p>
+                `;
                 contextContent.classList.add('loading');
-                if (loadingText) {
-                    loadingText.style.display = 'block';
-                }
                 
                 try {
                     const response = await fetch('/analyze_context', {
@@ -360,18 +363,12 @@
                     
                     const data = await response.json();
                     contextContent.classList.remove('loading');
-                    if (loadingText) {
-                        loadingText.style.display = 'none';
-                    }
                     
                     if (data.summary) {
                         contextContent.innerHTML = `<p>${data.summary.replace(/\n/g, '<br>')}</p>`;
                     }
                 } catch (error) {
                     contextContent.classList.remove('loading');
-                    if (loadingText) {
-                        loadingText.style.display = 'none';
-                    }
                     contextContent.innerHTML = '<p>Error analysing context</p>';
                 }
             });

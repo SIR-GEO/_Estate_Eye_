@@ -465,3 +465,72 @@ hr {
 .loading > p:not(.loading-text) {
     display: none;
 }
+
+/* Add these media query styles at the end of your CSS file */
+@media screen and (max-width: 768px) {
+    .video-container {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .top-row, .bottom-row {
+        flex-direction: column;
+        width: 100%;
+        gap: 15px;
+    }
+
+    .video-wrapper {
+        width: 100%;
+    }
+
+    video, canvas {
+        width: 100% !important;
+        height: auto !important;
+    }
+
+    .text-output {
+        width: 100% !important;
+        height: auto;
+        min-height: 300px;
+        box-sizing: border-box;
+    }
+
+    .button-group {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .toggle-switch {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .ai-question-input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .search-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .ai-search-btn, .ai-context-btn {
+        width: 100%;
+        margin-top: 5px;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+        text-align: center;
+        padding: 0 10px;
+    }
+
+    .claude-content,
+    .tavily-content,
+    .context-content {
+        height: 200px !important;
+    }
+}
