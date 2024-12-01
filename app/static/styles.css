@@ -525,9 +525,28 @@ hr {
         gap: 15px;
     }
 
+    .toggle-row {
+        flex-direction: column;
+        width: 100%;
+        gap: 15px;
+    }
+
     .toggle-switch {
         width: 100%;
+        display: flex;
         justify-content: space-between;
+        align-items: center;
+        padding: 5px 10px;
+    }
+
+    .switch {
+        margin-left: auto;  /* Push switch to the right */
+        margin-right: 10px; /* Add some space between switch and label */
+    }
+
+    .toggle-label {
+        flex: 1;  /* Allow label to take available space */
+        margin-right: 10px; /* Space between text and switch */
     }
 
     .ai-question-input {
