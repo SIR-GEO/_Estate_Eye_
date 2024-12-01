@@ -38,9 +38,8 @@
                                 </div>
                             </div>
                             <div class="camera-row">
-                                <button id="camera-toggle" class="camera-btn" disabled>
-                                    Switch Camera 📸
-                                </button>
+                                <label for="camera-select">Select Camera: </label>
+                                <select id="camera-select" class="camera-select" disabled></select>
                             </div>
                         </div>
                     </div>
@@ -131,8 +130,7 @@
             const aiContextBtn = document.getElementById('ai-context-btn');
             const contextContent = document.querySelector('.context-content');
             const aiQuestion = document.getElementById('ai-question');
-            const cameraToggle = document.getElementById('camera-toggle');
-            let currentCameraIndex = 0;
+            const cameraSelect = document.getElementById('camera-select');
             let availableCameras = [];
             let canCapture = true;
 
@@ -208,81 +206,154 @@
                 if (!canCapture) return;
 
                 try {
-                    const track = video.srcObject.getVideoTracks()[0];
+                    const stream = video.srcObject;
+                    if (!stream) {
+                        console.warn('No video stream available.');
+                        return;
+                    }
+                    const track = stream.getVideoTracks()[0];
+                    if (!track || track.readyState !== 'live') {
+                        console.warn('No live video track available.');
+                        return;
+                    }
+
                     const imageCapture = new ImageCapture(track);
                     const frame = await imageCapture.grabFrame();
-                    canvas.width = frame.width;
-                    canvas.height = frame.height;
-                    context.drawImage(frame, 0, 0);
 
-                    // Convert canvas to Data URL (Base64-encoded string)
-                    const frameDataUrl = canvas.toDataURL('image/jpeg', 0.5); // Adjust quality if needed
+                    if (frame) {
+                        canvas.width = frame.width;
+                        canvas.height = frame.height;
+                        context.drawImage(frame, 0, 0);
 
-                    const message = {
-                        frame: frameDataUrl,
-                        detection: detectionEnabled,
-                        ocr: ocrEnabled,
-                        barcode: barcodeEnabled
-                    };
+                        const frameDataUrl = canvas.toDataURL('image/jpeg', 0.5);
 
-                    if (websocket && websocket.readyState === WebSocket.OPEN) {
-                        websocket.send(JSON.stringify(message));
-                        canCapture = false; // Prevent capturing new frame until processed frame is received
+                        const message = {
+                            frame: frameDataUrl,
+                            detection: detectionEnabled,
+                            ocr: ocrEnabled,
+                            barcode: barcodeEnabled
+                        };
+
+                        if (websocket && websocket.readyState === WebSocket.OPEN) {
+                            websocket.send(JSON.stringify(message));
+                            canCapture = false;
+                        } else {
+                            console.warn('WebSocket is not open. Cannot send frame data.');
+                        }
                     } else {
-                        console.warn('WebSocket is not open. Cannot send frame data.');
+                        console.warn('No frame captured.');
                     }
                 } catch (error) {
                     console.error('Error capturing frame:', error);
+                    canCapture = true;
                 }
             }
 
             async function getAvailableCameras() {
                 try {
-                    await navigator.mediaDevices.getUserMedia({ video: true }); // Request initial permission
+                    await navigator.mediaDevices.getUserMedia({ video: true });
+                } catch (error) {
+                    console.error('Permission denied or error accessing camera:', error);
+                    alert('Please allow camera access to use this feature.');
+                    return [];
+                }
+
+                try {
                     const devices = await navigator.mediaDevices.enumerateDevices();
                     return devices.filter(device => device.kind === 'videoinput');
                 } catch (error) {
-                    console.error('Error getting cameras:', error);
+                    console.error('Error enumerating devices:', error);
                     return [];
                 }
             }
 
-            async function startVideo() {
-                try {
-                    // Get available cameras
-                    availableCameras = await getAvailableCameras();
-                    
-                    // Enable camera toggle if multiple cameras are available
-                    cameraToggle.disabled = availableCameras.length <= 1;
-                    
-                    // Set constraints based on available cameras
-                    let constraints = {
+            async function startVideo(deviceId = null) {
+                const constraintOptions = [
+                    {
                         video: {
-                            facingMode: 'environment', // Prefer rear camera on mobile
                             width: { ideal: 1280 },
-                            height: { ideal: 720 }
+                            height: { ideal: 720 },
+                            ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: 'environment' } })
                         }
-                    };
-                    
-                    if (availableCameras.length > 0 && currentCameraIndex < availableCameras.length) {
-                        constraints.video.deviceId = { exact: availableCameras[currentCameraIndex].deviceId };
+                    },
+                    {
+                        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: 'environment' } }
+                    },
+                    {
+                        video: true
                     }
-                    
-                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                    video.srcObject = stream;
-                    await video.play();
+                ];
 
-                    // Establish WebSocket connection
-                    connectWebSocket();
+                let lastError = null;
 
-                    // Do not call updateFrame() here
+                for (const constraints of constraintOptions) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        handleStream(stream);
+                        console.log('Camera started successfully with constraints:', constraints);
+                        return;
+                    } catch (error) {
+                        console.log(`Trying different camera configuration...`);
+                        lastError = error;
+                    }
+                }
 
-                } catch (error) {
-                    console.error('Error starting video:', error);
-                    // Show user-friendly error message
+                if (!video.srcObject) {
+                    console.error('Could not start camera with any configuration:', lastError);
                     alert('Unable to access camera. Please ensure camera permissions are granted and the device is working properly.');
                 }
             }
+
+            function handleStream(stream) {
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    canCapture = true;
+                    updateFrame();
+                };
+            }
+
+            window.addEventListener('load', async () => {
+                availableCameras = await getAvailableCameras();
+                const cameraSelect = document.getElementById('camera-select');
+
+                if (availableCameras.length > 0) {
+                    availableCameras.forEach((camera, index) => {
+                        const option = document.createElement('option');
+                        option.value = camera.deviceId;
+                        option.text = camera.label || `Camera ${index + 1}`;
+                        cameraSelect.appendChild(option);
+                    });
+
+                    cameraSelect.disabled = false;
+                    const selectedDeviceId = cameraSelect.value;
+                    await startVideo(selectedDeviceId);
+                } else {
+                    alert('No cameras found on this device.');
+                }
+
+                connectWebSocket();
+            });
+
+            cameraSelect.addEventListener('change', async () => {
+                try {
+                    canCapture = false;
+
+                    if (video.srcObject) {
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                        video.srcObject = null;
+                    }
+
+                    const selectedDeviceId = cameraSelect.value;
+                    await startVideo(selectedDeviceId);
+                } catch (error) {
+                    console.error('Error switching camera:', error);
+                    alert('Error switching between cameras. Please check permissions and try again.');
+                }
+            });
 
             aiSearchBtn.addEventListener('click', async () => {
                 if (!canvas) return;
@@ -416,46 +487,6 @@
                 } catch (error) {
                     contextContent.classList.remove('loading');
                     contextContent.innerHTML = '<p>Error analysing context</p>';
-                }
-            });
-
-            cameraToggle.addEventListener('click', async () => {
-                try {
-                    // Refresh available cameras list
-                    availableCameras = await getAvailableCameras();
-                    
-                    if (availableCameras.length === 0) {
-                        alert('No cameras detected on your device.');
-                        return;
-                    }
-                    
-                    // Update camera index
-                    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-                    
-                    // Stop current stream
-                    const stream = video.srcObject;
-                    if (stream) {
-                        stream.getTracks().forEach(track => track.stop());
-                    }
-                    
-                    // Start new stream with selected camera
-                    try {
-                        const newStream = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                deviceId: { exact: availableCameras[currentCameraIndex].deviceId },
-                                width: { ideal: 1280 },
-                                height: { ideal: 720 }
-                            }
-                        });
-                        video.srcObject = newStream;
-                        await video.play();
-                    } catch (error) {
-                        console.error('Error switching camera:', error);
-                        alert('Failed to switch camera. Please try again.');
-                    }
-                } catch (error) {
-                    console.error('Error in camera toggle:', error);
-                    alert('Error switching between cameras. Please check permissions and try again.');
                 }
             });
 

@@ -603,3 +603,25 @@ hr {
     cursor: not-allowed;
     opacity: 0.5;
 }
+
+.camera-select {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.camera-select:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.camera-row label {
+    margin-right: 10px;
+    font-size: 14px;
+    color: white;
+}
