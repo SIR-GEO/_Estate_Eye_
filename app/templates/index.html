@@ -154,14 +154,18 @@
             document.getElementById('barcode-toggle').disabled = false;
 
             function connectWebSocket() {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const host = window.location.host;
-                const path = window.location.pathname.replace(/\/$/, '');
-                const wsUrl = `${protocol}//${host}${path}/ws`;
-                
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+
                 console.log('Connecting to WebSocket:', wsUrl);
                 websocket = new WebSocket(wsUrl);
-                
+
+                websocket.onopen = function() {
+                    console.log('WebSocket connection opened');
+                    canCapture = true; // Allow capturing frames
+                    updateFrame(); // Start capturing and sending frames
+                };
+
                 websocket.onclose = function(e) {
                     console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
                     setTimeout(function() {
@@ -183,7 +187,7 @@
                             URL.revokeObjectURL(img.src);
 
                             canCapture = true; // Allow capturing the next frame
-                            updateFrame();     // Capture and send the next frame
+                            updateFrame();     // Start capturing and sending the next frame
                         };
                     } else {
                         try {
@@ -211,19 +215,22 @@
                     canvas.height = frame.height;
                     context.drawImage(frame, 0, 0);
 
-                    canvas.toBlob(async (blob) => {
-                        if (websocket && websocket.readyState === WebSocket.OPEN) {
-                            const arrayBuffer = await blob.arrayBuffer();
-                            const message = {
-                                frame: Array.from(new Uint8Array(arrayBuffer)),
-                                detection: detectionEnabled,
-                                ocr: ocrEnabled,
-                                barcode: barcodeEnabled
-                            };
-                            websocket.send(JSON.stringify(message));
-                            canCapture = false; // Prevent capturing new frame until processed frame is received
-                        }
-                    }, "image/jpeg");
+                    // Convert canvas to Data URL (Base64-encoded string)
+                    const frameDataUrl = canvas.toDataURL('image/jpeg', 0.5); // Adjust quality if needed
+
+                    const message = {
+                        frame: frameDataUrl,
+                        detection: detectionEnabled,
+                        ocr: ocrEnabled,
+                        barcode: barcodeEnabled
+                    };
+
+                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(JSON.stringify(message));
+                        canCapture = false; // Prevent capturing new frame until processed frame is received
+                    } else {
+                        console.warn('WebSocket is not open. Cannot send frame data.');
+                    }
                 } catch (error) {
                     console.error('Error capturing frame:', error);
                 }
@@ -268,8 +275,8 @@
                     // Establish WebSocket connection
                     connectWebSocket();
 
-                    // Start capturing frames
-                    updateFrame();
+                    // Do not call updateFrame() here
+
                 } catch (error) {
                     console.error('Error starting video:', error);
                     // Show user-friendly error message

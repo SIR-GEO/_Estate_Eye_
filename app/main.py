@@ -1,13 +1,15 @@
 import sys
 import os
+import base64
+import cv2
+import numpy as np
+import json
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
-import cv2
-import numpy as np
 from .utils.model import initialize_model
 import time
 import torch
@@ -105,14 +107,17 @@ async def websocket_endpoint(websocket: WebSocket):
         while connection_active:
             try:
                 data = await websocket.receive_json()
-                frame_data = bytes(data['frame'])
+                frame_data_url = data['frame']
                 detection_enabled = data.get('detection', False)
                 ocr_enabled = data.get('ocr', False)
                 barcode_enabled = data.get('barcode', False)
 
-                if not frame_data:
+                if not frame_data_url:
                     continue
 
+                # Decode base64 data
+                header, encoded = frame_data_url.split(',', 1)
+                frame_data = base64.b64decode(encoded)
                 nparr = np.frombuffer(frame_data, np.uint8)
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 if img is None:
