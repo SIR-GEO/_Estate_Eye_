@@ -242,7 +242,7 @@
                 const claudeContent = document.querySelector('.claude-content');
                 const tavilyContent = document.querySelector('.tavily-content');
                 
-                // Show loading state and text
+                // Show loading state and text for both
                 claudeContent.classList.add('loading');
                 tavilyContent.classList.add('loading');
                 claudeContent.querySelector('.loading-text').style.display = 'block';
@@ -257,7 +257,8 @@
                     const frame = Array.from(new Uint8Array(arrayBuffer));
                     
                     try {
-                        const response = await fetch('/analyze_snapshot', {
+                        // First request for Claude analysis
+                        const claudeResponse = await fetch('/analyze_snapshot', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -265,21 +266,37 @@
                             body: JSON.stringify({
                                 frame,
                                 ocr_texts,
-                                barcode_texts
+                                barcode_texts,
+                                analysis_type: 'claude'
                             })
                         });
                         
-                        const data = await response.json();
-                        if (data.analysis) {
+                        const claudeData = await claudeResponse.json();
+                        if (claudeData.analysis && claudeData.analysis.claude) {
                             claudeContent.classList.remove('loading');
-                            tavilyContent.classList.remove('loading');
                             claudeContent.querySelector('.loading-text').style.display = 'none';
+                            claudeContent.innerHTML = `<p>${claudeData.analysis.claude.replace(/\n/g, '<br>')}</p>`;
+                            
+                            // Now request Tavily results
+                            const tavilyResponse = await fetch('/analyze_snapshot', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    frame,
+                                    ocr_texts,
+                                    barcode_texts,
+                                    analysis_type: 'tavily'
+                                })
+                            });
+                            
+                            const tavilyData = await tavilyResponse.json();
+                            tavilyContent.classList.remove('loading');
                             tavilyContent.querySelector('.loading-text').style.display = 'none';
                             
-                            claudeContent.innerHTML = `<p>${data.analysis.claude.replace(/\n/g, '<br>')}</p>`;
-                            
-                            if (data.analysis.tavily.length > 0) {
-                                tavilyContent.innerHTML = data.analysis.tavily.map(result => `
+                            if (tavilyData.analysis && tavilyData.analysis.tavily.length > 0) {
+                                tavilyContent.innerHTML = tavilyData.analysis.tavily.map(result => `
                                     <div class="search-result">
                                         <h4>Search: ${result.term}</h4>
                                         <p><strong>${result.title}</strong></p>
@@ -287,11 +304,11 @@
                                         <a href="${result.url}" target="_blank">Read more</a>
                                     </div>
                                 `).join('<hr>');
+                                aiContextBtn.disabled = false;
                             } else {
                                 tavilyContent.innerHTML = '<p>No online search results found</p>';
+                                aiContextBtn.disabled = true;
                             }
-                            
-                            aiContextBtn.disabled = data.analysis.tavily.length === 0;
                         }
                     } catch (error) {
                         claudeContent.classList.remove('loading');

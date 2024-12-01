@@ -236,14 +236,22 @@ async def websocket_endpoint(websocket: WebSocket):
 async def analyze_snapshot(request: Request):
     try:
         data = await request.json()
-        image_data = np.frombuffer(bytes(data['frame']), np.uint8)
-        img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
+        analysis_type = data.get('analysis_type', 'claude')  # Default to claude for backward compatibility
         
-        ocr_texts = data.get('ocr_texts', [])
-        barcode_texts = data.get('barcode_texts', [])
-        
-        analysis = await ai_analyzer.analyze_snapshot(img, ocr_texts, barcode_texts)
-        return {"analysis": analysis}
+        if analysis_type == 'claude':
+            image_data = np.frombuffer(bytes(data['frame']), np.uint8)
+            img = cv2.imdecode(image_data, cv2.IMREAD_COLOR)
+            
+            ocr_texts = data.get('ocr_texts', [])
+            barcode_texts = data.get('barcode_texts', [])
+            
+            analysis = await ai_analyzer.analyze_snapshot_claude(img, ocr_texts, barcode_texts)
+            return {"analysis": {"claude": analysis}}
+            
+        elif analysis_type == 'tavily':
+            tavily_results = await ai_analyzer.analyze_snapshot_tavily()
+            return {"analysis": {"tavily": tavily_results}}
+            
     except Exception as e:
         return {"error": str(e)}
 

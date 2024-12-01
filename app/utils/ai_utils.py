@@ -83,7 +83,7 @@ class AIAnalyzer:
         _, buffer = cv2.imencode('.jpg', image)
         return base64.b64encode(buffer).decode('utf-8')
         
-    async def analyze_snapshot(self, image, ocr_texts=None, barcode_texts=None):
+    async def analyze_snapshot_claude(self, image, ocr_texts=None, barcode_texts=None):
         try:
             image_base64 = self.get_image_base64(image)
             
@@ -120,50 +120,55 @@ class AIAnalyzer:
             )
 
             if not response or not response.content:
-                return {"claude": "Error: No response from Claude", "tavily": []}
-
+                return "Error: No response from Claude"
+            
             claude_analysis = response.content[0].text
-
-            # Extract search terms
-            search_terms = []
+            
+            # Store search terms for later Tavily use
             if "Search Terms:" in claude_analysis:
                 terms_section = claude_analysis.split("Search Terms:")[-1].strip()
                 if terms_section.lower() != "none":
-                    search_terms = [term.strip() for term in terms_section.split(",") if term.strip()][:3]
+                    self.last_search_terms = [term.strip() for term in terms_section.split(",") if term.strip()][:3]
+            
+            return claude_analysis
+            
+        except Exception as e:
+            return f"Error during Claude analysis: {str(e)}"
 
-            # Perform Tavily searches
+    async def analyze_snapshot_tavily(self):
+        try:
+            if not hasattr(self, 'last_search_terms') or not self.last_search_terms:
+                return []
+            
             tavily_results = []
-            if search_terms:
-                for term in search_terms:
-                    try:
-                        search_result = self.tavily_client.search(
-                            query=term,
-                            include_answer=True,
-                            search_depth="advanced",
-                            max_results=1
-                        )
-                        if search_result and search_result.get('results'):
-                            result_entry = {
-                                'term': term,
-                                'title': search_result['results'][0].get('title', ''),
-                                'content': search_result['results'][0].get('content', '')[:200] + '...',
-                                'url': search_result['results'][0].get('url', '')
-                            }
-                            tavily_results.append(result_entry)
-                    except Exception as search_error:
-                        print(f"Tavily search error for term '{term}': {search_error}")
-
-            # Store Tavily results for context analysis
+            for term in self.last_search_terms:
+                try:
+                    search_result = self.tavily_client.search(
+                        query=term,
+                        include_answer=True,
+                        search_depth="advanced",
+                        max_results=1
+                    )
+                    if search_result and search_result.get('results'):
+                        result_entry = {
+                            'term': term,
+                            'title': search_result['results'][0].get('title', ''),
+                            'content': search_result['results'][0].get('content', '')[:200] + '...',
+                            'url': search_result['results'][0].get('url', '')
+                        }
+                        tavily_results.append(result_entry)
+                except Exception as search_error:
+                    print(f"Tavily search error for term '{term}': {search_error}")
+            
+            # Store results for context analysis
             if tavily_results:
                 self.last_tavily_results = tavily_results
             
-            return {
-                "claude": claude_analysis,
-                "tavily": tavily_results
-            }
+            return tavily_results
             
         except Exception as e:
-            return {"claude": f"Error during analysis: {str(e)}", "tavily": []}
+            print(f"Error during Tavily analysis: {str(e)}")
+            return []
         
     async def analyze_context(self, question):
         try:
