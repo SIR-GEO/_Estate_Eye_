@@ -18,7 +18,7 @@ body {
 .video-wrapper {
     text-align: left;
     position: relative;
-    width: 100%;
+    width: 640px;
 }
 video, canvas {
     border: 2px solid #ffffff;
@@ -43,7 +43,7 @@ h1 {
 .toggle-switch {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .switch {
@@ -110,11 +110,32 @@ input:checked + .slider:before {
 
 .button-group {
     display: flex;
-    justify-content: space-around;
-    align-items: center;
-    gap: 30px;
+    flex-direction: column;
+    gap: 10px;
     padding: 10px 0;
     width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.toggle-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+}
+
+.camera-row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.camera-btn {
+    width: auto;
+    min-width: 150px;
+    max-width: 200px;
 }
 
 .switch input:disabled + .slider {
