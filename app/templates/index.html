@@ -333,10 +333,18 @@
 
             aiContextBtn.addEventListener('click', async () => {
                 const contextContent = document.querySelector('.context-content');
+                const loadingText = contextContent?.querySelector('.loading-text');
                 
-                // Show loading state and text
+                if (!contextContent) {
+                    console.error('Context content element not found');
+                    return;
+                }
+                
+                // Show loading state
                 contextContent.classList.add('loading');
-                contextContent.querySelector('.loading-text').style.display = 'block';
+                if (loadingText) {
+                    loadingText.style.display = 'block';
+                }
                 
                 try {
                     const response = await fetch('/analyze_context', {
@@ -351,14 +359,18 @@
                     
                     const data = await response.json();
                     contextContent.classList.remove('loading');
-                    contextContent.querySelector('.loading-text').style.display = 'none';
+                    if (loadingText) {
+                        loadingText.style.display = 'none';
+                    }
                     
                     if (data.summary) {
                         contextContent.innerHTML = `<p>${data.summary.replace(/\n/g, '<br>')}</p>`;
                     }
                 } catch (error) {
                     contextContent.classList.remove('loading');
-                    contextContent.querySelector('.loading-text').style.display = 'none';
+                    if (loadingText) {
+                        loadingText.style.display = 'none';
+                    }
                     contextContent.innerHTML = '<p>Error analysing context</p>';
                 }
             });
