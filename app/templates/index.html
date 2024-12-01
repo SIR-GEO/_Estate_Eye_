@@ -111,7 +111,9 @@
             document.getElementById('barcode-toggle').disabled = false;
 
             function connectWebSocket() {
-                websocket = new WebSocket("ws://localhost:8000/ws");
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                websocket = new WebSocket(wsUrl);
 
                 websocket.onmessage = (event) => {
                     if (event.data instanceof Blob) {

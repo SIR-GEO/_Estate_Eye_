@@ -5,12 +5,26 @@ from tavily import TavilyClient
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Only load .env if it exists
+if os.path.exists(".env"):
+    load_dotenv()
 
 class AIAnalyzer:
     def __init__(self):
-        self.anthropic = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
-        self.tavily_client = TavilyClient(api_key=os.getenv('TAVILY_API_KEY'))
+        api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+            
+        # Initialize without proxies
+        self.anthropic = Anthropic(
+            api_key=api_key,
+        )
+        
+        tavily_key = os.environ.get('TAVILY_API_KEY')
+        if not tavily_key:
+            raise ValueError("TAVILY_API_KEY environment variable is not set")
+            
+        self.tavily_client = TavilyClient(api_key=tavily_key)
         
     def get_image_base64(self, image):
         _, buffer = cv2.imencode('.jpg', image)
@@ -20,7 +34,6 @@ class AIAnalyzer:
         try:
             image_base64 = self.get_image_base64(image)
             
-            # Combine OCR and barcode texts
             detected_text = []
             if ocr_texts:
                 detected_text.extend(ocr_texts)
@@ -29,23 +42,9 @@ class AIAnalyzer:
             
             text_content = "\n".join(detected_text) if detected_text else "No text detected"
             
-            system_prompt = """You are an expert computer vision and OCR analyst. Your task is to:
-1. Analyse the image and any ocr text and/or barcodes/qr codes detected
-2. Extract any visible text, numbers, codes, or identifiable information
-3. If no text is found, describe what is visible in the image that might be relevant
-4. Format your response exactly as follows:
-
-Analysis:
-[Your detailed analysis here]
-
-Search Terms:
-[List 2-3 specific search terms, separated by commas]"""
-
             # Get Claude analysis
             response = self.anthropic.messages.create(
                 model="claude-3-haiku-20240307",
-                max_tokens=1024,
-                system=system_prompt,
                 messages=[{
                     "role": "user",
                     "content": [
@@ -62,13 +61,15 @@ Search Terms:
                             "text": f"Analyse this image and the following detected text. Use it if relevant, otherwise ignore it:\n{text_content}"
                         }
                     ]
-                }]
+                }],
+                system="You are an expert computer vision and OCR analyst. Your task is to:\n1. Analyse the image and any ocr text and/or barcodes/qr codes detected\n2. Extract any visible text, numbers, codes, or identifiable information\n3. If no text is found, describe what is visible in the image that might be relevant\n4. Format your response exactly as follows:\n\nAnalysis:\n[Your detailed analysis here]\n\nSearch Terms:\n[List 2-3 specific search terms, separated by commas]",
+                max_tokens=1024
             )
 
             if not response or not response.content:
                 return {"claude": "Error: No response from Claude", "tavily": []}
 
-            claude_analysis = response.content[0].text.strip()
+            claude_analysis = response.content[0].text
 
             # Extract search terms
             search_terms = []

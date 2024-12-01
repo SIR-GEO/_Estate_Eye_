@@ -144,3 +144,5 @@ local_env/
 
 # End Generation Here
 yolov8n.pt
+codebase.txt
+download.py
