@@ -36,12 +36,14 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
+RUN chmod -R 755 /app/app/static
 
 # Pre-download models with specific cache locations
 RUN PYTHONPATH=/app \
     YOLO_CONFIG_DIR=/tmp/ultralytics \
     python3 -c "from ultralytics import YOLO; YOLO('yolov8n.pt')" && \
-    python3 -c "import os; os.environ['PADDLE_HOME']='/tmp/paddleocr'; from paddleocr import PaddleOCR; PaddleOCR(use_angle_cls=True, lang='en')"
+    python3 -c "import os; os.environ['PADDLE_HOME']='/tmp/paddleocr'; from paddleocr import PaddleOCR; PaddleOCR(use_angle_cls=True, lang='en')" && \
+    chmod -R 777 /tmp/ultralytics
 
 # Add a non-root user
 RUN useradd -m -u 1000 appuser

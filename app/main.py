@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
@@ -13,6 +13,11 @@ import time
 import torch
 from pyzbar.pyzbar import decode
 from .utils.ai_utils import AIAnalyzer
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import RedirectResponse
+from fastapi.responses import Response
 
 # Get the absolute path to the static and templates directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -21,8 +26,50 @@ templates_dir = os.path.join(BASE_DIR, "templates")
 
 app = FastAPI()
 
-# Mount static files with absolute path
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# Add these settings for the FastAPI app
+app.root_path = ""
+app.root_path_in_servers = True
+
+# Define middleware classes first
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = "upgrade-insecure-requests"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+class BaseURLRedirectMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.url.path == "/":
+            if "spaces" in request.headers.get("host", ""):
+                return RedirectResponse(url=request.url.path)
+        return await call_next(request)
+
+# Then add the middlewares in order
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(BaseURLRedirectMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://huggingface.co",
+        "https://*.hf.space",
+        "*"  # For development
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Update the static files configuration
+app.mount("/static", 
+    StaticFiles(
+        directory=static_dir, 
+        html=True,
+        check_dir=False
+    ), 
+    name="static"
+)
+
 templates = Jinja2Templates(directory=templates_dir)
 
 # Initialize model
@@ -38,8 +85,12 @@ print(f"PaddleOCR GPU Enabled: {cuda_available}")
 ai_analyzer = AIAnalyzer()
 
 @app.get("/")
-async def get(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "base_url": request.base_url,
+        "is_hf_space": "spaces" in request.headers.get("host", "")
+    })
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -167,16 +218,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_bytes(buffer.tobytes())
 
             except WebSocketDisconnect:
-                connection_active = False
+                print("WebSocket disconnected normally")
                 break
             except Exception as e:
-                print(f"Frame processing error: {str(e)}")
+                print(f"WebSocket error: {str(e)}")
                 continue
 
-    except WebSocketDisconnect:
-        print("WebSocket disconnected")
+    except Exception as e:
+        print(f"WebSocket connection error: {str(e)}")
     finally:
-        print("WebSocket connection closed")
+        try:
+            await websocket.close()
+        except:
+            pass
 
 @app.post("/analyze_snapshot")
 async def analyze_snapshot(request: Request):
@@ -192,3 +246,18 @@ async def analyze_snapshot(request: Request):
         return {"analysis": analysis}
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
+@app.get("/static/styles.css")
+async def serve_styles():
+    return FileResponse(
+        os.path.join(static_dir, "styles.css"),
+        media_type="text/css",
+        headers={
+            "Content-Security-Policy": "upgrade-insecure-requests",
+            "Cache-Control": "public, max-age=3600"
+        }
+    )
