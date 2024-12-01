@@ -159,39 +159,50 @@ async def websocket_endpoint(websocket: WebSocket):
                             })
 
                 if ocr_enabled and (time.time() - last_ocr_time) >= OCR_INTERVAL:
-                    ocr_results = ocr.ocr(img)
-                    last_ocr_time = time.time()
-                    
-                    if ocr_results is not None and len(ocr_results) > 0:
+                    try:
+                        ocr_results = ocr.ocr(img)
+                        last_ocr_time = time.time()
+                        
                         texts = []
-                        for line in ocr_results[0]:  # PaddleOCR returns a list of pages
-                            if line is not None and len(line) >= 2:
-                                box = line[0]
-                                if box is not None and len(box) == 4:
-                                    points = np.array(box).astype(np.int32)
-                                    text = line[1][0]  # Just get the text, ignore confidence
-                                    
-                                    # Draw the box
-                                    cv2.polylines(processed_img, [points], True, (0, 0, 255), 2)
-                                    
-                                    # Add text above the box without confidence
-                                    text_position = (int(points[0][0]), int(points[0][1] - 10))
-                                    cv2.putText(
-                                        processed_img,
-                                        text,
-                                        text_position,
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        0.5,
-                                        (0, 0, 255),
-                                        2
-                                    )
-                                    texts.append(text)  # Only append the text
+                        if ocr_results and len(ocr_results) > 0 and ocr_results[0] is not None:
+                            for line in ocr_results[0]:  # PaddleOCR returns a list of pages
+                                try:
+                                    if line is not None and len(line) >= 2:
+                                        box = line[0]
+                                        if box is not None and len(box) == 4:
+                                            points = np.array(box).astype(np.int32)
+                                            text = line[1][0]  # Just get the text, ignore confidence
+                                            
+                                            # Draw the box
+                                            cv2.polylines(processed_img, [points], True, (0, 0, 255), 2)
+                                            
+                                            # Add text above the box without confidence
+                                            text_position = (int(points[0][0]), int(points[0][1] - 10))
+                                            cv2.putText(
+                                                processed_img,
+                                                text,
+                                                text_position,
+                                                cv2.FONT_HERSHEY_SIMPLEX,
+                                                0.5,
+                                                (0, 0, 255),
+                                                2
+                                            )
+                                            texts.append(text)  # Only append the text
+                                except Exception as line_error:
+                                    print(f"Error processing OCR line: {str(line_error)}")
+                                    continue
 
-                        if texts:
-                            await websocket.send_json({
-                                "type": "ocr",
-                                "texts": texts
-                            })
+                        # Always send a response, even if no text is found
+                        await websocket.send_json({
+                            "type": "ocr",
+                            "texts": texts if texts else ["No text detected"]
+                        })
+                    except Exception as ocr_error:
+                        print(f"OCR processing error: {str(ocr_error)}")
+                        await websocket.send_json({
+                            "type": "ocr",
+                            "texts": ["Error processing OCR"]
+                        })
 
                 if detection_enabled:
                     results = model(img)
@@ -222,6 +233,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 break
             except Exception as e:
                 print(f"WebSocket error: {str(e)}")
+                # Send an error message to the client
+                try:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "An error occurred processing the frame"
+                    })
+                except:
+                    break  # Break if we can't send the error message
                 continue
 
     except Exception as e:
