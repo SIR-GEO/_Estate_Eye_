@@ -1,3 +1,5 @@
+### Available to play around with: https://huggingface.co/spaces/Mr-Geo/Estate_Eye
+
 # Estate Eyes 🏠
 
 Estate Eyes is a state-of-the-art real-time computer vision application that integrates object detection, OCR (Optical Character Recognition), and barcode/QR code scanning with AI-driven analysis.
