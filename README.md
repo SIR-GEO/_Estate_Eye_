@@ -127,11 +127,6 @@ Create a `.env` file in the root directory with the following keys:
 4. Push to the branch
 5. Create a Pull Request
 
-## Licence 📄
-
-[Specify your licence information here]
-
-## Acknowledgements 👏
 
 - YOLOv8 by Ultralytics
 - PaddleOCR by PaddlePaddle
